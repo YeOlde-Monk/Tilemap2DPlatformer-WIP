@@ -12,6 +12,7 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Jumping")]
     [SerializeField] float jumpForce = 5f;
+    [SerializeField] bool isGrounded = true;
 
     [Header("Climbing")]
     [SerializeField] float climbAnimationSpeed = 1f;
@@ -45,10 +46,29 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         if (!isAlive) { return; }
+        Falling();
         Run();
         FlipSprite();
         ClimbLadder();
-        Die();
+        StartCoroutine(Die());
+    }
+
+    void Falling()
+    {
+        if (!isAlive) { return; }
+        
+        if (playerFeetCollider.IsTouchingLayers(LayerMask.GetMask("Ground")))
+        {
+            isGrounded = true;
+            playerAnimator.SetBool("isGrounded", true);
+            playerAnimator.SetBool("isFalling", false);
+        }
+        else
+        {
+            isGrounded = false;
+            playerAnimator.SetBool("isGrounded", false);
+            playerAnimator.SetBool("isFalling", true);
+        }
     }
 
     void OnFire(InputValue value)
@@ -66,7 +86,9 @@ public class PlayerMovement : MonoBehaviour
     void OnJump(InputValue value)
     {
         if (!isAlive) { return; }
-        if (!playerFeetCollider.IsTouchingLayers(LayerMask.GetMask("Ground"))) { return; }
+
+        //if (!playerFeetCollider.IsTouchingLayers(LayerMask.GetMask("Ground"))) { return; }
+        if (!isGrounded) { return; }
 
         if (value.isPressed)
         {
@@ -101,6 +123,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (playerBodyCollider.IsTouchingLayers(LayerMask.GetMask("Climbing")))
         {
+            //playerAnimator.SetBool("isFalling", false);
             Vector2 climbVelocity = new Vector2(playerRb2d.velocity.x, moveInput.y * climbSpeed);
             playerRb2d.velocity = climbVelocity;
             playerRb2d.gravityScale = 0f;
@@ -124,13 +147,14 @@ public class PlayerMovement : MonoBehaviour
         }
     }
     
-    void Die()
+    IEnumerator Die()
     {
         if (playerBodyCollider.IsTouchingLayers(LayerMask.GetMask("Enemies", "Obstacles")))
         {
             isAlive = false;
             playerAnimator.SetTrigger("hasDied");
             playerRb2d.velocity = knockBack;
+            yield return new WaitForSecondsRealtime(2);
             FindObjectOfType<GameSession>().ProcessPlayerDeath();
         }
     }
